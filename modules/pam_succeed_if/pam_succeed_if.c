@@ -537,12 +537,18 @@ pam_succeed_if(pam_handle_t *pamh, int argc, const char **argv)
 				pam_syslog(pamh, LOG_NOTICE,
 					   "error retrieving information about user %s",
 					   user);
+			/* Determine if the user exists before logging.
+			 * If the user doesn't exist and audit is not enabled,
+			 * avoid logging potentially sensitive user input. */
+			if (pwd == NULL)
+				pwd = pam_modutil_getpwnam(pamh, user);
 			if (ret != PAM_SUCCESS) {
 				if(!quiet_fail && ret != PAM_USER_UNKNOWN)
 					pam_syslog(pamh, LOG_INFO,
 						   "requirement \"%s %s %s\" "
 						   "not met by user \"%s\"",
-						   left, qual, right, user);
+						   left, qual, right,
+						   pwd != NULL || audit ? user : "unknown user");
 				left = qual = right = NULL;
 				break;
 			}
@@ -551,7 +557,8 @@ pam_succeed_if(pam_handle_t *pamh, int argc, const char **argv)
 					pam_syslog(pamh, LOG_INFO,
 						   "requirement \"%s %s %s\" "
 						   "was met by user \"%s\"",
-						   left, qual, right, user);
+						   left, qual, right,
+						   pwd != NULL || audit ? user : "unknown user");
 			left = qual = right = NULL;
 			continue;
 		}
